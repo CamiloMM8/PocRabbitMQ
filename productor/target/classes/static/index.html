@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Productor API</title>
+	<style>
+		:root {
+			--ink: #1c2430;
+			--muted: #5c6b7a;
+			--line: #d5dde6;
+			--paper: #f3f6f8;
+			--card: #ffffff;
+			--direct: #1d4e89;
+			--fanout: #8a4b08;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: "Segoe UI", sans-serif;
+			color: var(--ink);
+			background: var(--paper);
+		}
+		header {
+			background: #14324f;
+			color: white;
+			padding: 22px 28px;
+		}
+		header h1 { margin: 0 0 6px; font-size: 26px; font-weight: 650; }
+		header p { margin: 0; color: #d5e4f2; }
+		main { padding: 22px 28px 40px; max-width: 1100px; }
+		.mapa {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 10px;
+			margin-bottom: 18px;
+		}
+		.mapa div {
+			background: var(--card);
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			padding: 12px;
+		}
+		.mapa strong { display: block; font-size: 13px; }
+		.mapa span { color: var(--muted); font-size: 13px; }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+		.card {
+			background: var(--card);
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 16px;
+		}
+		.card h2 { margin: 0 0 8px; font-size: 18px; }
+		.badge {
+			display: inline-block;
+			color: white;
+			border-radius: 999px;
+			padding: 2px 8px;
+			font-size: 12px;
+			margin-bottom: 8px;
+		}
+		.direct { background: var(--direct); }
+		.fanout { background: var(--fanout); }
+		label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+		input {
+			width: 100%;
+			padding: 10px;
+			border: 1px solid var(--line);
+			border-radius: 6px;
+			font: inherit;
+		}
+		button {
+			margin-top: 12px;
+			background: #14324f;
+			color: white;
+			border: 0;
+			border-radius: 6px;
+			padding: 10px 14px;
+			font: inherit;
+			cursor: pointer;
+		}
+		button:hover { background: #1d4e89; }
+		#resultado {
+			margin-top: 16px;
+			background: #102033;
+			color: #e7f0f8;
+			border-radius: 10px;
+			padding: 14px 16px;
+			min-height: 72px;
+			white-space: pre-wrap;
+			font-family: Consolas, monospace;
+			font-size: 14px;
+		}
+		.nota { color: var(--muted); font-size: 14px; line-height: 1.45; }
+		ol { margin: 8px 0 0; padding-left: 18px; }
+		a { color: #1d4e89; }
+		@media (max-width: 800px) {
+			.mapa, .grid { grid-template-columns: 1fr; }
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<h1>Productor API · puerto 8081</h1>
+		<p>Publica en RabbitMQ. Si el consumidor está apagado, el mensaje queda en la cola.</p>
+	</header>
+	<main>
+		<section class="mapa">
+			<div><strong>Agente</strong><span>RabbitMQ, puerto 5672</span></div>
+			<div><strong>Productor</strong><span>Esta API</span></div>
+			<div><strong>Intercambios</strong><span>poc.directo y poc.fanout</span></div>
+			<div><strong>Consumidor</strong><span><a href="http://localhost:8082">API en el puerto 8082</a></span></div>
+		</section>
+		<section class="grid">
+			<article class="card">
+				<span class="badge direct">Punto a punto</span>
+				<h2>Publicar tarea</h2>
+				<p class="nota">Intercambio <b>poc.directo</b>, clave de enrutamiento <b>tarea.nueva</b>, cola <b>poc.tareas</b>.</p>
+				<label for="tarea">Contenido</label>
+				<input id="tarea" value="Validar documentos del vehículo ABC123">
+				<button onclick="enviar('/api/tareas', 'tarea')">Enviar tarea</button>
+			</article>
+			<article class="card">
+				<span class="badge fanout">Publicador / suscriptor</span>
+				<h2>Publicar aviso</h2>
+				<p class="nota">Intercambio <b>poc.fanout</b>. El mismo mensaje entra a <b>poc.avisos.panel</b> y <b>poc.avisos.auditoria</b>.</p>
+				<label for="aviso">Contenido</label>
+				<input id="aviso" value="Se publicaron 12 trayectos nuevos">
+				<button onclick="enviar('/api/avisos', 'aviso')">Enviar aviso</button>
+			</article>
+		</section>
+		<pre id="resultado">Aquí aparece el intercambio, la clave de enrutamiento y las colas de cada envío.</pre>
+		<section class="card" style="margin-top: 16px;">
+			<h2>Prueba de desacople</h2>
+			<ol class="nota">
+				<li>Deja esta página abierta y detén la API consumidora con Ctrl+C.</li>
+				<li>Envía una tarea. El productor sigue respondiendo.</li>
+				<li>Abre <a href="http://localhost:15672" target="_blank">http://localhost:15672</a> (guest / guest) y muestra la cola <b>poc.tareas</b> con mensajes en Ready.</li>
+				<li>Vuelve a iniciar el consumidor. El mensaje sale de la cola cuando llega el acuse.</li>
+			</ol>
+		</section>
+	</main>
+	<script>
+		async function enviar(url, campo) {
+			const contenido = document.getElementById(campo).value;
+			const salida = document.getElementById("resultado");
+			salida.textContent = "Publicando...";
+			try {
+				const respuesta = await fetch(url, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ contenido })
+				});
+				const datos = await respuesta.json();
+				if (!respuesta.ok) {
+					salida.textContent = datos.error || "No se pudo publicar.";
+					return;
+				}
+				salida.textContent =
+					"Modelo: " + datos.modelo + "\n" +
+					"Intercambio: " + datos.exchange + "\n" +
+					"Clave de enrutamiento: " + (datos.routingKey || "(vacía, fanout)") + "\n" +
+					"Colas: " + datos.colas.join(", ") + "\n" +
+					"Persistente: " + datos.persistente + "\n" +
+					"Id del mensaje: " + datos.id + "\n" +
+					datos.nota;
+			} catch (error) {
+				salida.textContent = "La API productora no respondió. Revisa que esté iniciada y que RabbitMQ esté en ejecución.";
+			}
+		}
+	</script>
+</body>
+</html>

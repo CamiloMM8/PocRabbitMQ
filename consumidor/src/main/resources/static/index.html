@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consumidor API</title>
+	<style>
+		:root {
+			--ink: #1c2430;
+			--muted: #5c6b7a;
+			--line: #d5dde6;
+			--paper: #f3f6f8;
+			--card: #ffffff;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: "Segoe UI", sans-serif;
+			color: var(--ink);
+			background: var(--paper);
+		}
+		header {
+			background: #0b6e4f;
+			color: white;
+			padding: 22px 28px;
+			display: flex;
+			justify-content: space-between;
+			gap: 16px;
+			align-items: center;
+		}
+		header h1 { margin: 0 0 6px; font-size: 26px; font-weight: 650; }
+		header p { margin: 0; color: #d7f3e8; }
+		button {
+			background: white;
+			color: #0b6e4f;
+			border: 0;
+			border-radius: 6px;
+			padding: 10px 14px;
+			font: inherit;
+			cursor: pointer;
+		}
+		main { padding: 22px 28px 40px; }
+		.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+		.card {
+			background: var(--card);
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 14px;
+			min-height: 240px;
+		}
+		.card h2 { margin: 0; font-size: 18px; }
+		.meta { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
+		.item {
+			border-top: 1px solid var(--line);
+			padding: 10px 0;
+		}
+		.item strong { display: block; margin-bottom: 4px; }
+		.item small { display: block; color: var(--muted); line-height: 1.4; }
+		.vacio { color: var(--muted); }
+		@media (max-width: 900px) {
+			.grid { grid-template-columns: 1fr; }
+			header { flex-direction: column; align-items: flex-start; }
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<div>
+			<h1>Consumidor API · puerto 8082</h1>
+			<p>El acuse se envía 2 segundos después de recibir. Hasta ese momento el mensaje figura Unacked en RabbitMQ.</p>
+		</div>
+		<button onclick="limpiar()">Limpiar pantalla</button>
+	</header>
+	<main>
+		<section class="grid">
+			<article class="card">
+				<h2>poc.tareas</h2>
+				<p class="meta">Punto a punto · intercambio poc.directo · clave tarea.nueva</p>
+				<div id="tareas" class="vacio">Esperando mensajes.</div>
+			</article>
+			<article class="card">
+				<h2>poc.avisos.panel</h2>
+				<p class="meta">Suscriptor 1 · intercambio poc.fanout</p>
+				<div id="panel" class="vacio">Esperando avisos.</div>
+			</article>
+			<article class="card">
+				<h2>poc.avisos.auditoria</h2>
+				<p class="meta">Suscriptor 2 · el mismo aviso, otra cola</p>
+				<div id="auditoria" class="vacio">Esperando avisos.</div>
+			</article>
+		</section>
+	</main>
+	<script>
+		function pintar(id, mensajes) {
+			const caja = document.getElementById(id);
+			if (!mensajes || mensajes.length === 0) {
+				caja.className = "vacio";
+				caja.textContent = "Sin mensajes en esta sesión.";
+				return;
+			}
+			caja.className = "";
+			caja.innerHTML = mensajes.map(function (mensaje) {
+				return "<div class='item'><strong>" + escapar(mensaje.contenido) + "</strong>" +
+					"<small>Publicado: " + escapar(mensaje.publicadoEn) +
+					" · Recibido tras el acuse: " + escapar(mensaje.recibidoEn) + "</small>" +
+					"<small>Cola " + escapar(mensaje.cola) +
+					" · exchange " + escapar(mensaje.exchange || "") +
+					" · routing " + escapar(mensaje.routingKey || "") + "</small>" +
+					"<small>messageId " + escapar(mensaje.messageId || "") +
+					" · deliveryMode " + escapar(mensaje.deliveryMode || "") + "</small></div>";
+			}).join("");
+		}
+
+		function escapar(valor) {
+			return String(valor)
+				.replaceAll("&", "&amp;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;");
+		}
+
+		async function refrescar() {
+			try {
+				const respuesta = await fetch("/api/recibidos");
+				const datos = await respuesta.json();
+				pintar("tareas", datos.tareas);
+				pintar("panel", datos.panel);
+				pintar("auditoria", datos.auditoria);
+			} catch (error) {
+				document.getElementById("tareas").textContent = "Sin conexión con el consumidor.";
+			}
+		}
+
+		async function limpiar() {
+			await fetch("/api/recibidos", { method: "DELETE" });
+			refrescar();
+		}
+
+		refrescar();
+		setInterval(refrescar, 1000);
+	</script>
+</body>
+</html>

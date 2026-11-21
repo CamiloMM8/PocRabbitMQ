@@ -1,0 +1,7 @@
+com\example\poc\productor\mensaje\PublicacionResponse.class
+com\example\poc\productor\mensaje\Mensaje.class
+com\example\poc\productor\mensaje\ContenidoRequest.class
+com\example\poc\productor\ProductorApplication.class
+com\example\poc\productor\service\PublicadorService.class
+com\example\poc\productor\config\RabbitConfig.class
+com\example\poc\productor\web\ProductorController.class

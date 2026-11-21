@@ -1,0 +1,8 @@
+com\example\poc\consumidor\ConsumidorApplication.class
+com\example\poc\consumidor\config\RabbitConfig.class
+com\example\poc\consumidor\mensaje\MensajeRecibido.class
+com\example\poc\consumidor\service\ConsumidorListener.class
+com\example\poc\consumidor\mensaje\Mensaje.class
+com\example\poc\consumidor\mensaje\BandejaResponse.class
+com\example\poc\consumidor\service\BandejaService.class
+com\example\poc\consumidor\web\ConsumidorController.class
